@@ -21,6 +21,9 @@ type AMQPHook struct {
 	Internal     bool
 	NoWait       bool
 	AutoDeleted  bool
+
+	contentType string
+	formatter   logrus.Formatter
 }
 
 func NewAMQPHook(server, username, password, exchange, routingKey string) *AMQPHook {
@@ -40,6 +43,16 @@ func NewAMQPHookWithType(server, username, password, exchange, exchangeType, vir
 	hook.VirtualHost = virtualHost
 
 	return &hook
+}
+
+func (hook *AMQPHook) WithFormatter(formatter logrus.Formatter) *AMQPHook {
+	hook.formatter = formatter
+	return hook
+}
+
+func (hook *AMQPHook) WithContentType(contentType string) *AMQPHook {
+	hook.contentType = contentType
+	return hook
 }
 
 // Fire is called when an event should be sent to the message broker
@@ -70,7 +83,8 @@ func (hook *AMQPHook) Fire(entry *logrus.Entry) error {
 		return err
 	}
 
-	body, err := entry.String()
+	body, err := hook.format(entry)
+
 	if err != nil {
 		return err
 	}
@@ -82,7 +96,7 @@ func (hook *AMQPHook) Fire(entry *logrus.Entry) error {
 		hook.Immediate,
 		amqp.Publishing{
 			ContentType: "text/plain",
-			Body:        []byte(body),
+			Body:        body,
 		})
 	if err != nil {
 		return err
@@ -101,4 +115,12 @@ func (hook *AMQPHook) Levels() []logrus.Level {
 		logrus.InfoLevel,
 		logrus.DebugLevel,
 	}
+}
+
+func (hook *AMQPHook) format(entry *logrus.Entry) ([]byte, error) {
+	if hook.formatter != nil {
+		return hook.formatter.Format(entry)
+	}
+
+	return entry.Logger.Formatter.Format(entry)
 }
