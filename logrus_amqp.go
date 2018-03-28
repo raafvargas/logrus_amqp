@@ -33,6 +33,8 @@ func NewAMQPHook(server, username, password, exchange, routingKey string) *AMQPH
 func NewAMQPHookWithType(server, username, password, exchange, exchangeType, virtualHost, routingKey string) *AMQPHook {
 	hook := AMQPHook{}
 
+	hook.contentType = "text/plain"
+
 	hook.AMQPServer = server
 	hook.Username = username
 	hook.Password = password
@@ -95,7 +97,7 @@ func (hook *AMQPHook) Fire(entry *logrus.Entry) error {
 		hook.Mandatory,
 		hook.Immediate,
 		amqp.Publishing{
-			ContentType: "text/plain",
+			ContentType: hook.contentType,
 			Body:        body,
 		})
 	if err != nil {
